@@ -1,0 +1,48 @@
+{
+    "$schema": "./node_modules/oxfmt/configuration_schema.json",
+    "ignorePatterns": [
+        "dist/**",
+        "*.json",
+        "*.jsonc",
+    ],
+    "printWidth": 100,
+    "tabWidth": 2,
+    "useTabs": false,
+    "semi": false,
+    "singleQuote": false,
+    "sortImports": {
+        "newlinesBetween": true,
+        "customGroups": [
+            {
+                "groupName": "react-libs",
+                "elementNamePattern": [
+                    "react",
+                    "react-**"
+                ],
+            },
+        ],
+        "groups": [
+            "react-libs",
+            [
+                "value-builtin",
+                "value-external"
+            ],
+            "value-internal",
+            [
+                "value-parent",
+                "value-sibling",
+                "value-index"
+            ],
+            "type-import",
+            "unknown"
+        ]
+    },
+    "quoteProps": "as-needed",
+    "bracketSpacing": true,
+    "bracketSameLine": false,
+    "arrowParens": "always",
+    "trailingComma": "all",
+    "proseWrap": "preserve",
+    "embeddedLanguageFormatting": "auto",
+    "endOfLine": "lf",
+}

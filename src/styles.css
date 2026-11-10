@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+html {
+  scrollbar-gutter: stable;
+}
+
+:root {
+  color-scheme: light;
+  --page: #e9eef1;
+  --surface: #ffffff;
+  --inset: #f3f6f8;
+  --line: #d3dbe0;
+  --ink: #1f2a30;
+  --ink-muted: #5f6f7a;
+  --accent: #5f6f7a;
+  --accent-strong: #37474f;
+  --accent-soft: #e6eaed;
+  --on-accent: #ffffff;
+}
+
+.dark {
+  color-scheme: dark;
+  --page: #0c1215;
+  --surface: #1b2428;
+  --inset: #121a1e;
+  --line: #34424a;
+  --ink: #e3e9ec;
+  --ink-muted: #9aa7b1;
+  --accent: #9aa7b1;
+  --accent-strong: #cfd8dc;
+  --accent-soft: #263036;
+  --on-accent: #13181b;
+}
+
+@theme inline {
+  --font-sans: ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-inset: var(--inset);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+}
