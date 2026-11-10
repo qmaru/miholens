@@ -58,6 +58,9 @@ const en = {
   "error.http": "{path} request failed: HTTP {status}",
   "error.generic": "Request failed: {message}",
 
+  "update.ready": "New version ready",
+  "update.apply": "Refresh to update",
+
   "dns.ipTarget": "Target is an IP; no DNS resolution needed",
   "dns.noUpstreamLog":
     "No upstream captured in logs: the kernel may have returned a cached result (enable the live upstream option below the target field to flush the cache first)",
@@ -136,6 +139,9 @@ const zh: Record<MessageKey, string> = {
 
   "error.http": "{path} 请求失败：HTTP {status}",
   "error.generic": "请求失败：{message}",
+
+  "update.ready": "新版本已就绪",
+  "update.apply": "刷新以更新",
 
   "dns.ipTarget": "目标为 IP，无需 DNS 解析",
   "dns.noUpstreamLog":

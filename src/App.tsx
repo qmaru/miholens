@@ -7,6 +7,7 @@ import { ThemeSwitch } from "./components/ThemeSwitch"
 import { normalizeTarget, runDiagnosis } from "./diagnostics/diagnose"
 import { LanguageProvider, useI18n } from "./i18n/LanguageProvider"
 import { translationsOf, type Message, type MessageKey } from "./i18n/messages"
+import { applyServiceWorkerUpdate, registerServiceWorker } from "./serviceWorker"
 
 import type { DiagnosisResult, Field, FieldSource, FieldStatus } from "./diagnostics/types"
 
@@ -292,6 +293,13 @@ function Inspector() {
   const [error, setError] = useState<Message | null>(null)
   const [running, setRunning] = useState(false)
   const [liveUpstream, setLiveUpstream] = useState(false)
+  const [updateReady, setUpdateReady] = useState(false)
+
+  useEffect(() => {
+    registerServiceWorker(() => {
+      setUpdateReady(true)
+    })
+  }, [])
 
   useEffect(() => {
     if (remember) {
@@ -337,6 +345,19 @@ function Inspector() {
           <ThemeSwitch />
         </div>
       </header>
+
+      {updateReady && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm">
+          <span>{t("update.ready")}</span>
+          <button
+            type="button"
+            onClick={applyServiceWorkerUpdate}
+            className="shrink-0 cursor-pointer rounded-lg bg-accent px-3 py-1.5 font-medium text-on-accent transition-colors hover:bg-accent-strong"
+          >
+            {t("update.apply")}
+          </button>
+        </div>
+      )}
 
       <details className="group mb-4 rounded-xl border border-line bg-surface shadow-sm">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3 text-sm [&::-webkit-details-marker]:hidden">

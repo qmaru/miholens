@@ -7,6 +7,7 @@ miholens (Mihomo Inspector) is a pure-frontend diagnostic tool. Given a domain o
 ## Constraints
 
 - Call the Mihomo REST API and WebSocket directly. No backend.
+- Offline-first: `public/sw.js` precaches the built shell (cache-first). Mihomo API responses are never cached. When online, the worker only checks for updates; activation is user-triggered via the banner.
 - Do not modify Mihomo. No config or proxy management, except the opt-in live-upstream switch. For one diagnosis it flushes the DNS cache (POST /cache/dns/flush), then reads the upstream from the `/logs?level=debug` stream. The kernel log-level is not changed, and nothing is written to the config file.
 - No local rule simulation. Show only live kernel state.
 - Never guess. Mark data the API cannot provide as unavailable, with the reason.
@@ -30,6 +31,8 @@ Run `pnpm fmt`, `pnpm lint`, and `pnpm test` before finishing a change. There is
 - `src/i18n/`: message catalogs (en and zh) and the language provider
 - `src/styles.css`: theme tokens
 - `src/pages/index.astro`: page shell, favicon, theme script
+- `public/sw.js`: offline service worker; build manifest injected by `serviceWorker()` in `astro.config.mjs`
+- `src/serviceWorker.ts`: registration and update hook (production only)
 
 ## Conventions
 
