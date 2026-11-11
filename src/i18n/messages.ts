@@ -13,24 +13,21 @@ const en = {
   "theme.light": "Light",
   "theme.dark": "Dark",
 
-  "connection.title": "Connection settings",
+  "connection.title": "Connection",
   "connection.summary": "{baseUrl} · Secret {state}",
   "connection.secretUnset": "not set",
   "connection.baseUrl": "API address",
-  "connection.remember":
-    "Remember connection settings (saved in this browser; Secret is stored in plain text)",
+  "connection.remember": "Remember (Secret stored in plain text)",
 
   "form.target": "Domain or IP",
   "form.diagnose": "Diagnose",
   "form.diagnosing": "Diagnosing…",
-  "form.hint":
-    "Diagnosis reads active connections. If the target has no connection, first access it once through the Mihomo proxy.",
-  "form.liveUpstream":
-    "Before querying DNS, flush the kernel DNS cache so the real upstream is captured from the debug log",
+  "form.hint": "No connection yet? Access the target through the proxy first.",
+  "form.liveUpstream": "Flush DNS cache first",
 
   "target.domain": "Domain",
   "target.ip": "IP",
-  "result.title": "Diagnosis result",
+  "result.title": "Result",
 
   "status.observed": "Observed",
   "status.unavailable": "Unavailable",
@@ -41,19 +38,19 @@ const en = {
   "section.proxy": "Proxy",
   "section.correlation": "Correlation",
 
-  "highlight.upstream": "Actual DNS upstream",
+  "highlight.upstream": "DNS upstream",
   "highlight.kernelRule": "Kernel-matched rule",
   "highlight.rootGroup": "Root proxy group",
 
-  "field.answers": "Resolved answers",
+  "field.answers": "Answers",
   "field.rcode": "Response code",
-  "field.upstream": "Actual upstream",
+  "field.upstream": "Upstream",
   "field.kernelRule": "Kernel-matched rule",
   "field.rootGroup": "Root proxy group",
-  "field.chain": "Full proxy chain",
+  "field.chain": "Proxy chain",
   "field.leafType": "Leaf node type",
-  "field.observedChain": "Chain from connection record",
-  "field.probe": "Matched kernel connection",
+  "field.observedChain": "Connection chain",
+  "field.probe": "Matched connection",
 
   "error.http": "{path} request failed: HTTP {status}",
   "error.generic": "Request failed: {message}",
@@ -61,16 +58,21 @@ const en = {
   "update.ready": "New version ready",
   "update.apply": "Refresh to update",
 
-  "dns.ipTarget": "Target is an IP; no DNS resolution needed",
-  "dns.noUpstreamLog":
-    "No upstream captured in logs: the kernel may have returned a cached result (enable the live upstream option below the target field to flush the cache first)",
-  "dns.logStreamFailed":
-    "Log stream failed: the upstream could not be read from /logs (check the secret and the address)",
-  "dns.fakeIpNote":
-    "The /dns/query answer is the kernel's actual resolution result, but it does not show whether fake-ip mapping was applied",
+  "backend.label": "Backend",
+  "backend.clash": "Clash / Mihomo",
+  "backend.singbox": "sing-box",
+  "form.liveUpstreamSingbox": "Unavailable in sing-box",
+  "dns.noQueryLog": "No DNS query for this target in the log buffer",
+  "dns.noLogLine": "Not in the log buffer",
+  "dns.singboxLogNote": "From sing-box log buffer; upstream is a DNS server tag.",
+  "rule.singboxFinal": "No rule matched; used the final route",
 
-  "rule.noConnection":
-    "No connection for this target in /connections; first access the target through the proxy",
+  "dns.ipTarget": "Target is an IP; no DNS resolution needed",
+  "dns.noUpstreamLog": "No upstream in logs; likely cached. Flush DNS cache and retry.",
+  "dns.logStreamFailed": "Log stream failed; check the secret and address",
+  "dns.fakeIpNote": "Kernel result; fake-ip mapping not shown",
+
+  "rule.noConnection": "No connection; access the target through the proxy first",
   "rule.notInRules": "Connection rule {rule} {payload} not found in /rules",
   "rule.emptyField": "The kernel connection record has an empty rule field",
 
@@ -80,10 +82,8 @@ const en = {
   "proxy.leafUnavailable": "{cause}, leaf node type unavailable",
   "proxy.chainFallbackUnavailable": "{cause}, and no connection record for this target",
 
-  "note.chainExpandFailed":
-    "Proxy chain expansion failed ({cause}); the full chain falls back to observations from the connection record",
-  "note.chainMismatch":
-    "The connection record's proxy chain differs from the current /proxies expansion (proxy group selection may have changed)",
+  "note.chainExpandFailed": "Chain expansion failed ({cause}); using the connection record instead",
+  "note.chainMismatch": "Connection record differs from /proxies",
 
   "chain.nodeMissing": 'Node "{name}" not found in /proxies or /providers/proxies',
   "chain.loop": 'Proxy group "{name}" has a cycle in its now chain',
@@ -98,21 +98,21 @@ const zh: Record<MessageKey, string> = {
   "theme.light": "浅色",
   "theme.dark": "深色",
 
-  "connection.title": "连接设置",
+  "connection.title": "连接",
   "connection.summary": "{baseUrl} · Secret {state}",
   "connection.secretUnset": "未设置",
   "connection.baseUrl": "API 地址",
-  "connection.remember": "记住连接设置（保存在本地浏览器，Secret 以明文存储）",
+  "connection.remember": "记住（Secret 明文存储）",
 
   "form.target": "域名或 IP",
   "form.diagnose": "诊断",
   "form.diagnosing": "诊断中…",
-  "form.hint": "诊断读取的是当前活动连接。若目标没有连接，请先通过 Mihomo 代理访问一次目标。",
-  "form.liveUpstream": "诊断前清空内核 DNS 缓存，以便从调试日志捕获真实上游",
+  "form.hint": "无连接时，先通过代理访问目标。",
+  "form.liveUpstream": "诊断前清空 DNS 缓存",
 
   "target.domain": "域名",
   "target.ip": "IP",
-  "result.title": "诊断结果",
+  "result.title": "结果",
 
   "status.observed": "内核实际",
   "status.unavailable": "无法获取",
@@ -123,19 +123,19 @@ const zh: Record<MessageKey, string> = {
   "section.proxy": "代理",
   "section.correlation": "关联",
 
-  "highlight.upstream": "实际 DNS 上游",
+  "highlight.upstream": "DNS 上游",
   "highlight.kernelRule": "内核命中规则",
   "highlight.rootGroup": "根代理组",
 
   "field.answers": "解析结果",
   "field.rcode": "应答码",
-  "field.upstream": "实际上游",
+  "field.upstream": "上游",
   "field.kernelRule": "内核命中规则",
   "field.rootGroup": "根代理组",
-  "field.chain": "完整代理链",
+  "field.chain": "代理链",
   "field.leafType": "叶子节点类型",
-  "field.observedChain": "连接记录代理链",
-  "field.probe": "匹配的内核连接",
+  "field.observedChain": "连接代理链",
+  "field.probe": "匹配的连接",
 
   "error.http": "{path} 请求失败：HTTP {status}",
   "error.generic": "请求失败：{message}",
@@ -143,13 +143,21 @@ const zh: Record<MessageKey, string> = {
   "update.ready": "新版本已就绪",
   "update.apply": "刷新以更新",
 
-  "dns.ipTarget": "目标为 IP，无需 DNS 解析",
-  "dns.noUpstreamLog":
-    "未捕获到上游日志：内核可能返回了缓存结果（请开启输入框下方的实时上游选项，先清空缓存）",
-  "dns.logStreamFailed": "日志连接失败：无法从 /logs 读取上游，请检查密钥和地址",
-  "dns.fakeIpNote": "/dns/query 的应答为内核实际解析结果，但不说明其是否经过 fake-ip 映射",
+  "backend.label": "后端",
+  "backend.clash": "Clash / Mihomo",
+  "backend.singbox": "sing-box",
+  "form.liveUpstreamSingbox": "sing-box 不支持",
+  "dns.noQueryLog": "日志缓冲中没有该目标的 DNS 查询",
+  "dns.noLogLine": "日志缓冲中没有该行",
+  "dns.singboxLogNote": "来自 sing-box 日志缓冲；上游为 DNS 服务器标签。",
+  "rule.singboxFinal": "未命中规则，走最终路由",
 
-  "rule.noConnection": "/connections 中没有该目标的连接，需先通过代理访问一次目标",
+  "dns.ipTarget": "目标为 IP，无需 DNS 解析",
+  "dns.noUpstreamLog": "日志中没有上游，可能命中缓存。清空 DNS 缓存后重试。",
+  "dns.logStreamFailed": "日志流失败，请检查 Secret 和地址",
+  "dns.fakeIpNote": "内核解析结果，不显示 fake-ip 映射",
+
+  "rule.noConnection": "没有连接，请先通过代理访问目标",
   "rule.notInRules": "连接记录的规则 {rule} {payload} 在 /rules 中未找到",
   "rule.emptyField": "内核连接记录的规则字段为空",
 
@@ -159,8 +167,8 @@ const zh: Record<MessageKey, string> = {
   "proxy.leafUnavailable": "{cause}，无法获取叶子节点类型",
   "proxy.chainFallbackUnavailable": "{cause}，且没有该目标的连接记录",
 
-  "note.chainExpandFailed": "代理链展开失败（{cause}），完整代理链改用连接记录中的观察结果",
-  "note.chainMismatch": "连接记录的代理链与 /proxies 当前展开结果不一致（代理组选择可能已变化）",
+  "note.chainExpandFailed": "代理链展开失败（{cause}），改用连接记录",
+  "note.chainMismatch": "连接记录与 /proxies 不一致",
 
   "chain.nodeMissing": '节点 "{name}" 在 /proxies 与 /providers/proxies 中均不存在',
   "chain.loop": '代理组 "{name}" 的 now 链路存在循环',

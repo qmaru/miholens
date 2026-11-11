@@ -16,6 +16,9 @@ export type FieldSource =
   | "proxies-api"
   | "providers-api"
   | "logs-ws"
+  | "connections-grpc"
+  | "proxies-grpc"
+  | "logs-grpc"
 
 /** One rule from the /rules list */
 export interface RuleEntry {
@@ -50,7 +53,8 @@ export interface DnsResult {
 }
 
 export interface RuleMatch {
-  index: number
+  /** Position in /rules; null when the backend does not expose a rule list (sing-box) */
+  index: number | null
   type: string
   payload: string
   proxy: string

@@ -10,6 +10,8 @@ import type {
   DiagnosisResult,
   DnsAnswer,
   Field,
+  FieldSource,
+  ProxyChainResult,
   RuleEntry,
   RuleMatch,
 } from "./types"
@@ -44,11 +46,11 @@ export function classifyTarget(target: string): "domain" | "ip" {
   return IPV4_RE.test(target) || target.includes(":") ? "ip" : "domain"
 }
 
-function observed<T>(value: T, source: Field<T>["source"]): Field<T> {
+export function observed<T>(value: T, source: Field<T>["source"]): Field<T> {
   return { value, status: "observed", source }
 }
 
-function unavailable<T>(source: Field<T>["source"], reason: Message): Field<T> {
+export function unavailable<T>(source: Field<T>["source"], reason: Message): Field<T> {
   return { value: null, status: "unavailable", source, reason }
 }
 
@@ -78,7 +80,89 @@ function findRule(rules: RuleEntry[], rule: string, payload: string): RuleMatch 
     : null
 }
 
-function connectionEvidence(conn: RawConnection): ConnectionEvidence {
+/** Most recent user connection to the target; "Inner" connections are the kernel's own DNS upstream sessions */
+export function matchConnection(
+  connections: RawConnection[],
+  target: string,
+  targetKind: "domain" | "ip",
+): RawConnection | null {
+  const matched = connections
+    .filter(
+      (c) =>
+        c.metadata.type !== "Inner" &&
+        (targetKind === "domain"
+          ? c.metadata.host === target
+          : c.metadata.destinationIP === target),
+    )
+    .sort((a, b) => b.start.localeCompare(a.start))
+  return matched[0] ?? null
+}
+
+/** Where each kind of data came from; differs between Mihomo and sing-box */
+export interface SourceSet {
+  connections: FieldSource
+  proxies: FieldSource
+  providers: FieldSource
+}
+
+export const MIHOMO_SOURCES: SourceSet = {
+  connections: "connections-api",
+  proxies: "proxies-api",
+  providers: "providers-api",
+}
+
+/**
+ * Expands the root group into its full chain and checks the connection's recorded chain against it.
+ * Falls back to the connection record when expansion fails.
+ */
+export function correlateChain(args: {
+  rootGroup: Field<string>
+  conn: RawConnection | null
+  proxies: Record<string, ProxyNode>
+  providerProxies?: Record<string, ProxyNode>
+  sources: SourceSet
+  notes: Message[]
+}): Pick<ProxyChainResult, "chain" | "leafType" | "observedChain"> {
+  const { rootGroup, conn, proxies, providerProxies, sources, notes } = args
+
+  let chain: Field<string[]>
+  let leafType: Field<string>
+  if (rootGroup.value === null) {
+    const reason = rootGroup.reason ?? { key: "proxy.noRootGroup" }
+    chain = unavailable(sources.proxies, reason)
+    leafType = unavailable(sources.proxies, reason)
+  } else {
+    const resolved = resolveProxyChain({ ...providerProxies, ...proxies }, rootGroup.value)
+    if ("error" in resolved) {
+      leafType = unavailable(sources.proxies, {
+        key: "proxy.leafUnavailable",
+        params: { cause: resolved.error },
+      })
+      chain = conn
+        ? observed([...conn.chains].reverse(), sources.connections)
+        : unavailable(sources.proxies, {
+            key: "proxy.chainFallbackUnavailable",
+            params: { cause: resolved.error },
+          })
+      notes.push({ key: "note.chainExpandFailed", params: { cause: resolved.error } })
+    } else {
+      const leaf = resolved.chain[resolved.chain.length - 1]
+      chain = observed(resolved.chain, sources.proxies)
+      leafType = observed(resolved.leafType, proxies[leaf] ? sources.proxies : sources.providers)
+    }
+  }
+
+  const observedChain: Field<string[]> = conn
+    ? observed([...conn.chains].reverse(), sources.connections)
+    : unavailable(sources.connections, { key: "connection.none" })
+  if (conn && chain.value && !chainsMatchRootFirst(conn.chains, chain.value)) {
+    notes.push({ key: "note.chainMismatch" })
+  }
+
+  return { chain, leafType, observedChain }
+}
+
+export function connectionEvidence(conn: RawConnection): ConnectionEvidence {
   return {
     id: conn.id,
     host: conn.metadata.host,
@@ -104,17 +188,7 @@ export function buildDiagnosis(
   const notes: Message[] = []
 
   // Matching kernel connection; use the most recent one.
-  // "Inner" connections are the kernel's own DNS upstream sessions, not the user's traffic.
-  const matchedConns = connections
-    .filter(
-      (c) =>
-        c.metadata.type !== "Inner" &&
-        (targetKind === "domain"
-          ? c.metadata.host === target
-          : c.metadata.destinationIP === target),
-    )
-    .sort((a, b) => b.start.localeCompare(a.start))
-  const conn = matchedConns[0] ?? null
+  const conn = matchConnection(connections, target, targetKind)
 
   // DNS
   let dns: DiagnosisResult["dns"]
@@ -166,43 +240,14 @@ export function buildDiagnosis(
     ? observed(kernelHit.value.proxy, "connections-api")
     : unavailable("connections-api", kernelHit.reason ?? { key: "proxy.noRootGroup" })
 
-  let chain: Field<string[]>
-  let leafType: Field<string>
-  if (rootGroup.value === null) {
-    const reason = rootGroup.reason ?? { key: "proxy.noRootGroup" }
-    chain = unavailable("proxies-api", reason)
-    leafType = unavailable("proxies-api", reason)
-  } else {
-    const resolved = resolveProxyChain({ ...providerProxies, ...proxies }, rootGroup.value)
-    if ("error" in resolved) {
-      leafType = unavailable("proxies-api", {
-        key: "proxy.leafUnavailable",
-        params: { cause: resolved.error },
-      })
-      chain = conn
-        ? observed([...conn.chains].reverse(), "connections-api")
-        : unavailable("proxies-api", {
-            key: "proxy.chainFallbackUnavailable",
-            params: { cause: resolved.error },
-          })
-      notes.push({ key: "note.chainExpandFailed", params: { cause: resolved.error } })
-    } else {
-      const leaf = resolved.chain[resolved.chain.length - 1]
-      chain = { value: resolved.chain, status: "observed", source: "proxies-api" }
-      leafType = {
-        value: resolved.leafType,
-        status: "observed",
-        source: proxies[leaf] ? "proxies-api" : "providers-api",
-      }
-    }
-  }
-
-  const observedChain: Field<string[]> = conn
-    ? observed([...conn.chains].reverse(), "connections-api")
-    : unavailable("connections-api", { key: "connection.none" })
-  if (conn && chain.value && !chainsMatchRootFirst(conn.chains, chain.value)) {
-    notes.push({ key: "note.chainMismatch" })
-  }
+  const { chain, leafType, observedChain } = correlateChain({
+    rootGroup,
+    conn,
+    proxies,
+    providerProxies,
+    sources: MIHOMO_SOURCES,
+    notes,
+  })
 
   return {
     target,

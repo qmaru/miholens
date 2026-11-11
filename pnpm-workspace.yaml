@@ -1,5 +1,5 @@
 minimumReleaseAgeExclude:
-  - "@astrojs/react@7.1.5"
+  - "@astrojs/react@7.1.5 || 7.1.7"
   - "@oxfmt/binding-android-arm-eabi@0.78.0"
   - "@oxfmt/binding-android-arm64@0.78.0"
   - "@oxfmt/binding-darwin-arm64@0.78.0"
@@ -38,6 +38,11 @@ minimumReleaseAgeExclude:
   - "@oxlint/binding-win32-arm64-msvc@1.93.0"
   - "@oxlint/binding-win32-ia32-msvc@1.93.0"
   - "@oxlint/binding-win32-x64-msvc@1.93.0"
-  - astro@7.4.8
+  - astro@7.4.8 || 7.4.10
   - oxfmt@0.78.0
   - oxlint@1.93.0
+  - "@astrojs/internal-helpers@0.13.2"
+  - "@astrojs/markdown-satteri@0.4.8"
+  - "@astrojs/react-renderer@0.1.1"
+  - "@astrojs/runtime@0.1.0"
+  - "@astrojs/vite-plugin-astro@0.1.1"

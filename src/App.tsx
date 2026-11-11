@@ -1,10 +1,12 @@
 import { useEffect, useState, type ReactNode, type SubmitEvent } from "react"
 
 import { MihomoApiError, MihomoClient, type MihomoConfig } from "./api/client"
+import { SingboxClient } from "./api/singbox/client"
 import { LanguageSwitch } from "./components/LanguageSwitch"
 import { StableLabel } from "./components/StableLabel"
 import { ThemeSwitch } from "./components/ThemeSwitch"
 import { normalizeTarget, runDiagnosis } from "./diagnostics/diagnose"
+import { runSingboxDiagnosis } from "./diagnostics/singboxDiagnose"
 import { LanguageProvider, useI18n } from "./i18n/LanguageProvider"
 import { translationsOf, type Message, type MessageKey } from "./i18n/messages"
 import { applyServiceWorkerUpdate, registerServiceWorker } from "./serviceWorker"
@@ -59,6 +61,9 @@ const SOURCE_LABEL: Record<FieldSource, string> = {
   "proxies-api": "/proxies",
   "providers-api": "/providers/proxies",
   "logs-ws": "/logs",
+  "connections-grpc": "SubscribeConnections",
+  "proxies-grpc": "SubscribeOutbounds / SubscribeGroups",
+  "logs-grpc": "SubscribeLog",
 }
 
 function Code({ children }: { children: ReactNode }) {
@@ -118,14 +123,16 @@ function FieldView<T>({
 }) {
   const { t, tm } = useI18n()
   return (
-    <div className="grid gap-1.5 py-3 sm:grid-cols-[10rem_1fr] sm:gap-4">
+    <div className="grid gap-1.5 py-3 sm:grid-cols-[12rem_1fr] sm:gap-4">
       <div>
         <div className="text-sm font-medium">{label}</div>
-        <div className="mt-1 flex items-center gap-2 text-xs text-ink-muted">
-          <span className={`rounded px-1.5 py-0.5 ${STATUS_CLASS[field.status]}`}>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-muted">
+          <span
+            className={`shrink-0 rounded px-1.5 py-0.5 whitespace-nowrap ${STATUS_CLASS[field.status]}`}
+          >
             {t(STATUS_KEY[field.status])}
           </span>
-          <span>{SOURCE_LABEL[field.source]}</span>
+          <span className="min-w-0 break-words">{SOURCE_LABEL[field.source]}</span>
         </div>
       </div>
       <div className="min-w-0 text-sm break-words">
@@ -269,6 +276,13 @@ function ResultView({ result }: { result: DiagnosisResult }) {
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:9090"
 const STORAGE_KEY = "connection"
+const BACKEND_KEY = "backend"
+
+type Backend = "clash" | "singbox"
+
+function loadSavedBackend(): Backend {
+  return localStorage.getItem(BACKEND_KEY) === "singbox" ? "singbox" : "clash"
+}
 
 function loadSavedConnection(): { baseUrl: string; secret: string } | null {
   const raw = localStorage.getItem(STORAGE_KEY)
@@ -293,6 +307,7 @@ function Inspector() {
   const [error, setError] = useState<Message | null>(null)
   const [running, setRunning] = useState(false)
   const [liveUpstream, setLiveUpstream] = useState(false)
+  const [backend, setBackend] = useState<Backend>(loadSavedBackend)
   const [updateReady, setUpdateReady] = useState(false)
 
   useEffect(() => {
@@ -315,8 +330,11 @@ function Inspector() {
     setRunning(true)
     setError(null)
     try {
+      const normalized = normalizeTarget(target)
       setResult(
-        await runDiagnosis(new MihomoClient(config), normalizeTarget(target), { liveUpstream }),
+        backend === "singbox"
+          ? await runSingboxDiagnosis(new SingboxClient(config), normalized)
+          : await runDiagnosis(new MihomoClient(config), normalized, { liveUpstream }),
       )
     } catch (err) {
       setResult(null)
@@ -423,6 +441,24 @@ function Inspector() {
           void onSubmit(event)
         }}
       >
+        <div className="mb-4">
+          <label htmlFor="backend" className="block text-sm font-medium">
+            {t("backend.label")}
+          </label>
+          <select
+            id="backend"
+            className={`${INPUT_CLASS} mt-1.5`}
+            value={backend}
+            onChange={(e) => {
+              const next: Backend = e.target.value === "singbox" ? "singbox" : "clash"
+              setBackend(next)
+              localStorage.setItem(BACKEND_KEY, next)
+            }}
+          >
+            <option value="clash">{t("backend.clash")}</option>
+            <option value="singbox">{t("backend.singbox")}</option>
+          </select>
+        </div>
         <div>
           <label htmlFor="target" className="block text-sm font-medium">
             {t("form.target")}
@@ -454,12 +490,13 @@ function Inspector() {
             <input
               type="checkbox"
               className="h-3.5 w-3.5 accent-accent"
-              checked={liveUpstream}
+              checked={liveUpstream && backend === "clash"}
+              disabled={backend === "singbox"}
               onChange={(e) => {
                 setLiveUpstream(e.target.checked)
               }}
             />
-            {t("form.liveUpstream")}
+            {t(backend === "singbox" ? "form.liveUpstreamSingbox" : "form.liveUpstream")}
           </label>
         </div>
       </form>
