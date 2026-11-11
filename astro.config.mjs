@@ -42,11 +42,21 @@ function serviceWorker() {
           urls.push(file === "index.html" ? "/" : `/${file}`)
         }
         const build = { id: hash.digest("hex").slice(0, 12), urls }
+        const html = await readFile(path.join(root, "index.html"), "utf8")
+        const stylesheet = html
+          .match(/href="(https:\/\/fonts\.googleapis\.com\/[^"]+)"/)[1]
+          .replaceAll("&amp;", "&")
+        const fonts = {
+          stylesheet,
+          cache: `miholens-fonts-${createHash("sha256").update(stylesheet).digest("hex").slice(0, 12)}`,
+        }
         const swPath = path.join(root, "sw.js")
         const source = await readFile(swPath, "utf8")
         await writeFile(
           swPath,
-          source.replace("__BUILD__", () => JSON.stringify(build)),
+          source
+            .replace("__BUILD__", () => JSON.stringify(build))
+            .replace("__FONTS__", () => JSON.stringify(fonts)),
         )
       },
     },
