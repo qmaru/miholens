@@ -14,7 +14,11 @@ const en = {
   "theme.dark": "Dark",
 
   "connection.title": "Connection",
-  "connection.summary": "{baseUrl} · Secret {state}",
+  "connection.summary": "{name} · {backend} · {baseUrl} · Secret {state}",
+  "connection.defaultName": "Connection {index}",
+  "connection.name": "Name",
+  "connection.add": "Add",
+  "connection.delete": "Delete",
   "connection.secretUnset": "not set",
   "connection.baseUrl": "API address",
   "connection.remember": "Remember (Secret stored in plain text)",
@@ -59,7 +63,7 @@ const en = {
   "update.apply": "Refresh to update",
 
   "backend.label": "Backend",
-  "backend.clash": "Clash / Mihomo",
+  "backend.mihomo": "mihomo",
   "backend.singbox": "sing-box",
   "form.liveUpstreamSingbox": "Unavailable in sing-box",
   "dns.noQueryLog": "No DNS query for this target in the log buffer",
@@ -99,7 +103,11 @@ const zh: Record<MessageKey, string> = {
   "theme.dark": "深色",
 
   "connection.title": "连接",
-  "connection.summary": "{baseUrl} · Secret {state}",
+  "connection.summary": "{name} · {backend} · {baseUrl} · Secret {state}",
+  "connection.defaultName": "连接 {index}",
+  "connection.name": "名称",
+  "connection.add": "新增",
+  "connection.delete": "删除",
   "connection.secretUnset": "未设置",
   "connection.baseUrl": "API 地址",
   "connection.remember": "记住（Secret 明文存储）",
@@ -144,7 +152,7 @@ const zh: Record<MessageKey, string> = {
   "update.apply": "刷新以更新",
 
   "backend.label": "后端",
-  "backend.clash": "Clash / Mihomo",
+  "backend.mihomo": "mihomo",
   "backend.singbox": "sing-box",
   "form.liveUpstreamSingbox": "sing-box 不支持",
   "dns.noQueryLog": "日志缓冲中没有该目标的 DNS 查询",

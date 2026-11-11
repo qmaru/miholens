@@ -275,39 +275,72 @@ function ResultView({ result }: { result: DiagnosisResult }) {
 }
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:9090"
-const STORAGE_KEY = "connection"
-const BACKEND_KEY = "backend"
+const STORAGE_KEY = "connections"
 
-type Backend = "clash" | "singbox"
+type Backend = "mihomo" | "singbox"
 
-function loadSavedBackend(): Backend {
-  return localStorage.getItem(BACKEND_KEY) === "singbox" ? "singbox" : "clash"
+const BACKEND_LABEL: Record<Backend, MessageKey> = {
+  mihomo: "backend.mihomo",
+  singbox: "backend.singbox",
 }
 
-function loadSavedConnection(): { baseUrl: string; secret: string } | null {
-  const raw = localStorage.getItem(STORAGE_KEY)
+interface Connection {
+  id: string
+  name: string
+  backend: Backend
+  baseUrl: string
+  secret: string
+}
+
+interface SavedConnections {
+  connections: Connection[]
+  activeId: string
+  remember: boolean
+}
+
+function readJson<T>(key: string): T | null {
+  const raw = localStorage.getItem(key)
   if (raw === null) {
     return null
   }
   try {
-    return JSON.parse(raw) as { baseUrl: string; secret: string }
+    return JSON.parse(raw) as T
   } catch {
     return null
   }
 }
 
+function loadSavedConnections(defaultName: string): SavedConnections {
+  const saved = readJson<Omit<SavedConnections, "remember">>(STORAGE_KEY)
+  if (saved !== null) {
+    return { ...saved, remember: true }
+  }
+  const connection: Connection = {
+    id: "default",
+    name: defaultName,
+    backend: "mihomo",
+    baseUrl: DEFAULT_BASE_URL,
+    secret: "",
+  }
+  return { connections: [connection], activeId: connection.id, remember: false }
+}
+
+function connectionLabel(connection: Connection): string {
+  return connection.name.trim() || connection.baseUrl
+}
+
 function Inspector() {
   const { t, tm } = useI18n()
-  const [saved] = useState(loadSavedConnection)
-  const [baseUrl, setBaseUrl] = useState(saved?.baseUrl ?? DEFAULT_BASE_URL)
-  const [secret, setSecret] = useState(saved?.secret ?? "")
-  const [remember, setRemember] = useState(saved !== null)
+  const [saved] = useState(() => loadSavedConnections(t("connection.defaultName", { index: 1 })))
+  const [connections, setConnections] = useState(saved.connections)
+  const [activeId, setActiveId] = useState(saved.activeId)
+  const [remember, setRemember] = useState(saved.remember)
+  const active = connections.find((c) => c.id === activeId) ?? connections[0]
   const [target, setTarget] = useState("")
   const [result, setResult] = useState<DiagnosisResult | null>(null)
   const [error, setError] = useState<Message | null>(null)
   const [running, setRunning] = useState(false)
   const [liveUpstream, setLiveUpstream] = useState(false)
-  const [backend, setBackend] = useState<Backend>(loadSavedBackend)
   const [updateReady, setUpdateReady] = useState(false)
 
   useEffect(() => {
@@ -318,21 +351,43 @@ function Inspector() {
 
   useEffect(() => {
     if (remember) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ baseUrl, secret }))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ connections, activeId }))
     } else {
       localStorage.removeItem(STORAGE_KEY)
     }
-  }, [remember, baseUrl, secret])
+  }, [remember, connections, activeId])
+
+  function updateActive(patch: Partial<Omit<Connection, "id">>) {
+    setConnections(connections.map((c) => (c.id === active.id ? { ...c, ...patch } : c)))
+  }
+
+  function addConnection() {
+    const connection: Connection = {
+      id: Date.now().toString(36),
+      name: t("connection.defaultName", { index: connections.length + 1 }),
+      backend: "mihomo",
+      baseUrl: DEFAULT_BASE_URL,
+      secret: "",
+    }
+    setConnections([...connections, connection])
+    setActiveId(connection.id)
+  }
+
+  function deleteActive() {
+    const rest = connections.filter((c) => c.id !== active.id)
+    setConnections(rest)
+    setActiveId(rest[0].id)
+  }
 
   async function onSubmit(event: SubmitEvent) {
     event.preventDefault()
-    const config: MihomoConfig = { baseUrl, secret }
+    const config: MihomoConfig = { baseUrl: active.baseUrl, secret: active.secret }
     setRunning(true)
     setError(null)
     try {
       const normalized = normalizeTarget(target)
       setResult(
-        backend === "singbox"
+        active.backend === "singbox"
           ? await runSingboxDiagnosis(new SingboxClient(config), normalized)
           : await runDiagnosis(new MihomoClient(config), normalized, { liveUpstream }),
       )
@@ -383,8 +438,10 @@ function Inspector() {
             <span className="shrink-0 font-medium">{t("connection.title")}</span>
             <span className="truncate text-xs text-ink-muted">
               {t("connection.summary", {
-                baseUrl,
-                state: secret ? "••••••" : t("connection.secretUnset"),
+                name: connectionLabel(active),
+                backend: t(BACKEND_LABEL[active.backend]),
+                baseUrl: active.baseUrl,
+                state: active.secret ? "••••••" : t("connection.secretUnset"),
               })}
             </span>
           </span>
@@ -394,15 +451,44 @@ function Inspector() {
         </summary>
         <div className="grid gap-3 border-t border-line px-5 py-4 sm:grid-cols-2">
           <div>
+            <label htmlFor="connectionName" className="block text-sm font-medium">
+              {t("connection.name")}
+            </label>
+            <input
+              id="connectionName"
+              className={`${INPUT_CLASS} mt-1.5`}
+              value={active.name}
+              onChange={(e) => {
+                updateActive({ name: e.target.value })
+              }}
+            />
+          </div>
+          <div>
+            <label htmlFor="backend" className="block text-sm font-medium">
+              {t("backend.label")}
+            </label>
+            <select
+              id="backend"
+              className={`${INPUT_CLASS} mt-1.5`}
+              value={active.backend}
+              onChange={(e) => {
+                updateActive({ backend: e.target.value === "singbox" ? "singbox" : "mihomo" })
+              }}
+            >
+              <option value="mihomo">{t("backend.mihomo")}</option>
+              <option value="singbox">{t("backend.singbox")}</option>
+            </select>
+          </div>
+          <div>
             <label htmlFor="baseUrl" className="block text-sm font-medium">
               {t("connection.baseUrl")}
             </label>
             <input
               id="baseUrl"
               className={`${INPUT_CLASS} mt-1.5`}
-              value={baseUrl}
+              value={active.baseUrl}
               onChange={(e) => {
-                setBaseUrl(e.target.value)
+                updateActive({ baseUrl: e.target.value })
               }}
             />
           </div>
@@ -415,23 +501,42 @@ function Inspector() {
               type="password"
               autoComplete="off"
               className={`${INPUT_CLASS} mt-1.5`}
-              value={secret}
+              value={active.secret}
               onChange={(e) => {
-                setSecret(e.target.value)
+                updateActive({ secret: e.target.value })
               }}
             />
           </div>
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-muted sm:col-span-2">
-            <input
-              type="checkbox"
-              className="h-4 w-4 accent-accent"
-              checked={remember}
-              onChange={(e) => {
-                setRemember(e.target.checked)
-              }}
-            />
-            {t("connection.remember")}
-          </label>
+          <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-2">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-muted">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-accent"
+                checked={remember}
+                onChange={(e) => {
+                  setRemember(e.target.checked)
+                }}
+              />
+              {t("connection.remember")}
+            </label>
+            <div className="flex shrink-0 gap-2">
+              <button
+                type="button"
+                onClick={addConnection}
+                className="cursor-pointer rounded-lg border border-line px-3 py-1.5 text-sm transition-colors hover:bg-inset"
+              >
+                {t("connection.add")}
+              </button>
+              <button
+                type="button"
+                onClick={deleteActive}
+                disabled={connections.length === 1}
+                className="cursor-pointer rounded-lg border border-line px-3 py-1.5 text-sm transition-colors hover:bg-inset disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t("connection.delete")}
+              </button>
+            </div>
+          </div>
         </div>
       </details>
 
@@ -442,21 +547,22 @@ function Inspector() {
         }}
       >
         <div className="mb-4">
-          <label htmlFor="backend" className="block text-sm font-medium">
-            {t("backend.label")}
+          <label htmlFor="connectionSelect" className="block text-sm font-medium">
+            {t("connection.title")}
           </label>
           <select
-            id="backend"
+            id="connectionSelect"
             className={`${INPUT_CLASS} mt-1.5`}
-            value={backend}
+            value={active.id}
             onChange={(e) => {
-              const next: Backend = e.target.value === "singbox" ? "singbox" : "clash"
-              setBackend(next)
-              localStorage.setItem(BACKEND_KEY, next)
+              setActiveId(e.target.value)
             }}
           >
-            <option value="clash">{t("backend.clash")}</option>
-            <option value="singbox">{t("backend.singbox")}</option>
+            {connections.map((c) => (
+              <option key={c.id} value={c.id}>
+                {connectionLabel(c)} · {t(BACKEND_LABEL[c.backend])}
+              </option>
+            ))}
           </select>
         </div>
         <div>
@@ -490,13 +596,13 @@ function Inspector() {
             <input
               type="checkbox"
               className="h-3.5 w-3.5 accent-accent"
-              checked={liveUpstream && backend === "clash"}
-              disabled={backend === "singbox"}
+              checked={liveUpstream && active.backend === "mihomo"}
+              disabled={active.backend === "singbox"}
               onChange={(e) => {
                 setLiveUpstream(e.target.checked)
               }}
             />
-            {t(backend === "singbox" ? "form.liveUpstreamSingbox" : "form.liveUpstream")}
+            {t(active.backend === "singbox" ? "form.liveUpstreamSingbox" : "form.liveUpstream")}
           </label>
         </div>
       </form>
