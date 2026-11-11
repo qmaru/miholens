@@ -384,7 +384,7 @@ function Inspector() {
     <main className="relative mx-auto flex h-dvh max-w-3xl flex-col overflow-hidden px-5 py-6 sm:py-8">
       <div
         ref={stageRef}
-        className="transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+        className="relative z-10 transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
         style={{ transform: `translateY(${idle ? idleShift : 0}px)` }}
       >
         <header className="flex items-center justify-between gap-4">
