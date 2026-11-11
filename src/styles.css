@@ -18,6 +18,11 @@ html {
   --accent-strong: #37474f;
   --accent-soft: #e6eaed;
   --on-accent: #ffffff;
+  --term: #0f1719;
+  --term-line: #1d2a30;
+  --term-ink: #c9d4da;
+  --term-dim: #5d707b;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .dark {
@@ -47,4 +52,105 @@ html {
   --color-accent-strong: var(--accent-strong);
   --color-accent-soft: var(--accent-soft);
   --color-on-accent: var(--on-accent);
+  --color-term: var(--term);
+  --color-term-line: var(--term-line);
+  --color-term-ink: var(--term-ink);
+  --color-term-dim: var(--term-dim);
+}
+
+body {
+  overflow: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 40% at 30% 25%, rgb(95 111 122 / 0.12), transparent),
+    radial-gradient(35% 35% at 75% 70%, rgb(5 150 105 / 0.08), transparent);
+  animation: drift 20s ease-in-out infinite alternate;
+}
+
+.rise {
+  animation: rise 0.6s var(--ease) both;
+}
+
+.ring-pulse {
+  position: relative;
+}
+
+.ring-pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-color: rgb(16 185 129);
+  animation: ring 2.2s var(--ease) infinite;
+}
+
+.trace-line {
+  animation: trace-in 0.25s var(--ease) both;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.trace-cursor::after {
+  content: "▍";
+  color: #9ca3af;
+  animation: blink 1s infinite;
+}
+
+@keyframes drift {
+  to {
+    transform: translate3d(3%, -2%, 0) scale(1.05);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+}
+
+@keyframes trace-in {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+}
+
+@keyframes ring {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

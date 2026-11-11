@@ -1,11 +1,19 @@
-import { useEffect, useState, type ReactNode, type SubmitEvent } from "react"
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type SubmitEvent,
+} from "react"
 
 import { MihomoApiError, MihomoClient, type MihomoConfig } from "./api/client"
 import { SingboxClient } from "./api/singbox/client"
-import { LanguageSwitch } from "./components/LanguageSwitch"
+import { ConnectionManager } from "./components/ConnectionManager"
+import { DiagnosisTrace, type Phase } from "./components/DiagnosisTrace"
 import { StableLabel } from "./components/StableLabel"
-import { ThemeSwitch } from "./components/ThemeSwitch"
-import { normalizeTarget, runDiagnosis } from "./diagnostics/diagnose"
+import { loadSavedConnections, saveConnections, type SavedConnections } from "./connections"
+import { normalizeTarget, runDiagnosis, type TraceEvent } from "./diagnostics/diagnose"
 import { runSingboxDiagnosis } from "./diagnostics/singboxDiagnose"
 import { LanguageProvider, useI18n } from "./i18n/LanguageProvider"
 import { translationsOf, type Message, type MessageKey } from "./i18n/messages"
@@ -50,10 +58,11 @@ const TONE: Record<Tone, { bar: string; text: string; soft: string }> = {
   },
 }
 
-const INPUT_CLASS =
-  "w-full rounded-lg border border-line bg-inset px-3 py-2 text-sm text-ink placeholder:text-ink-muted/70 focus:border-accent focus:ring-2 focus:ring-accent/25 focus:outline-none"
-
-const DIAGNOSE_LABELS = [...translationsOf("form.diagnose"), ...translationsOf("form.diagnosing")]
+const DIAGNOSE_LABELS = [
+  ...translationsOf("form.diagnose"),
+  ...translationsOf("form.diagnosing"),
+  ...translationsOf("phase.failed"),
+]
 
 const SOURCE_LABEL: Record<FieldSource, string> = {
   "dns-query-api": "/dns/query",
@@ -274,72 +283,22 @@ function ResultView({ result }: { result: DiagnosisResult }) {
   )
 }
 
-const DEFAULT_BASE_URL = "http://127.0.0.1:9090"
-const STORAGE_KEY = "connections"
-
-type Backend = "mihomo" | "singbox"
-
-const BACKEND_LABEL: Record<Backend, MessageKey> = {
-  mihomo: "backend.mihomo",
-  singbox: "backend.singbox",
-}
-
-interface Connection {
-  id: string
-  name: string
-  backend: Backend
-  baseUrl: string
-  secret: string
-}
-
-interface SavedConnections {
-  connections: Connection[]
-  activeId: string
-  remember: boolean
-}
-
-function readJson<T>(key: string): T | null {
-  const raw = localStorage.getItem(key)
-  if (raw === null) {
-    return null
-  }
-  try {
-    return JSON.parse(raw) as T
-  } catch {
-    return null
-  }
-}
-
-function loadSavedConnections(defaultName: string): SavedConnections {
-  const saved = readJson<Omit<SavedConnections, "remember">>(STORAGE_KEY)
-  if (saved !== null) {
-    return { ...saved, remember: true }
-  }
-  const connection: Connection = {
-    id: "default",
-    name: defaultName,
-    backend: "mihomo",
-    baseUrl: DEFAULT_BASE_URL,
-    secret: "",
-  }
-  return { connections: [connection], activeId: connection.id, remember: false }
-}
-
-function connectionLabel(connection: Connection): string {
-  return connection.name.trim() || connection.baseUrl
-}
+type Tab = "trace" | "result"
 
 function Inspector() {
   const { t, tm } = useI18n()
-  const [saved] = useState(() => loadSavedConnections(t("connection.defaultName", { index: 1 })))
-  const [connections, setConnections] = useState(saved.connections)
-  const [activeId, setActiveId] = useState(saved.activeId)
-  const [remember, setRemember] = useState(saved.remember)
-  const active = connections.find((c) => c.id === activeId) ?? connections[0]
+  const [saved, setSaved] = useState(() =>
+    loadSavedConnections(t("connection.defaultName", { index: 1 })),
+  )
+  const active = saved.connections.find((c) => c.id === saved.activeId) ?? saved.connections[0]
   const [target, setTarget] = useState("")
+  const [runTarget, setRunTarget] = useState("")
+  const [phase, setPhase] = useState<Phase | null>(null)
+  const [runKey, setRunKey] = useState(0)
+  const [tab, setTab] = useState<Tab>("trace")
   const [result, setResult] = useState<DiagnosisResult | null>(null)
   const [error, setError] = useState<Message | null>(null)
-  const [running, setRunning] = useState(false)
+  const [traceEvents, setTraceEvents] = useState<TraceEvent[]>([])
   const [liveUpstream, setLiveUpstream] = useState(false)
   const [updateReady, setUpdateReady] = useState(false)
 
@@ -350,49 +309,45 @@ function Inspector() {
   }, [])
 
   useEffect(() => {
-    if (remember) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ connections, activeId }))
-    } else {
-      localStorage.removeItem(STORAGE_KEY)
+    saveConnections(saved)
+  }, [saved])
+
+  function onConnectionsChange(next: SavedConnections) {
+    if (next.activeId !== saved.activeId) {
+      setPhase(null)
+      setTarget("")
+      setRunTarget("")
+      setResult(null)
+      setError(null)
+      setTraceEvents([])
+      setTab("trace")
     }
-  }, [remember, connections, activeId])
-
-  function updateActive(patch: Partial<Omit<Connection, "id">>) {
-    setConnections(connections.map((c) => (c.id === active.id ? { ...c, ...patch } : c)))
-  }
-
-  function addConnection() {
-    const connection: Connection = {
-      id: Date.now().toString(36),
-      name: t("connection.defaultName", { index: connections.length + 1 }),
-      backend: "mihomo",
-      baseUrl: DEFAULT_BASE_URL,
-      secret: "",
-    }
-    setConnections([...connections, connection])
-    setActiveId(connection.id)
-  }
-
-  function deleteActive() {
-    const rest = connections.filter((c) => c.id !== active.id)
-    setConnections(rest)
-    setActiveId(rest[0].id)
+    setSaved(next)
   }
 
   async function onSubmit(event: SubmitEvent) {
     event.preventDefault()
     const config: MihomoConfig = { baseUrl: active.baseUrl, secret: active.secret }
-    setRunning(true)
+    setRunTarget(target.trim())
+    setRunKey((k) => k + 1)
+    setPhase("running")
+    setTab("trace")
+    setResult(null)
     setError(null)
+    setTraceEvents([])
     try {
       const normalized = normalizeTarget(target)
+      const onTrace = (event: TraceEvent) => {
+        setTraceEvents((events) => [...events, event])
+      }
       setResult(
         active.backend === "singbox"
-          ? await runSingboxDiagnosis(new SingboxClient(config), normalized)
-          : await runDiagnosis(new MihomoClient(config), normalized, { liveUpstream }),
+          ? await runSingboxDiagnosis(new SingboxClient(config), normalized, { onTrace })
+          : await runDiagnosis(new MihomoClient(config), normalized, { liveUpstream, onTrace }),
       )
+      setPhase("done")
     } catch (err) {
-      setResult(null)
+      setPhase("failed")
       setError(
         err instanceof MihomoApiError
           ? err.detail
@@ -401,221 +356,150 @@ function Inspector() {
               params: { message: err instanceof Error ? err.message : String(err) },
             },
       )
-    } finally {
-      setRunning(false)
     }
   }
 
+  const idle = phase === null
+
+  const stageRef = useRef<HTMLDivElement>(null)
+  const [idleShift, setIdleShift] = useState(0)
+
+  useLayoutEffect(() => {
+    const stage = stageRef.current
+    const main = stage?.parentElement
+    if (!stage || !main) return
+    const measure = () => {
+      setIdleShift((main.clientHeight - stage.offsetHeight) / 2 - stage.offsetTop)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(main)
+    observer.observe(stage)
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
   return (
-    <main className="mx-auto max-w-3xl px-5 py-10 sm:py-14">
-      <header className="mb-8 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">miholens</h1>
-          <p className="mt-1 text-sm text-ink-muted">Mihomo Inspector</p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <LanguageSwitch />
-          <ThemeSwitch />
-        </div>
-      </header>
-
-      {updateReady && (
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm">
-          <span>{t("update.ready")}</span>
-          <button
-            type="button"
-            onClick={applyServiceWorkerUpdate}
-            className="shrink-0 cursor-pointer rounded-lg bg-accent px-3 py-1.5 font-medium text-on-accent transition-colors hover:bg-accent-strong"
-          >
-            {t("update.apply")}
-          </button>
-        </div>
-      )}
-
-      <details className="group mb-4 rounded-xl border border-line bg-surface shadow-sm">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3 text-sm [&::-webkit-details-marker]:hidden">
-          <span className="flex min-w-0 items-baseline gap-3">
-            <span className="shrink-0 font-medium">{t("connection.title")}</span>
-            <span className="truncate text-xs text-ink-muted">
-              {t("connection.summary", {
-                name: connectionLabel(active),
-                backend: t(BACKEND_LABEL[active.backend]),
-                baseUrl: active.baseUrl,
-                state: active.secret ? "••••••" : t("connection.secretUnset"),
-              })}
-            </span>
-          </span>
-          <span className="shrink-0 text-ink-muted transition-transform group-[[open]]:rotate-180">
-            ▾
-          </span>
-        </summary>
-        <div className="grid gap-3 border-t border-line px-5 py-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="connectionName" className="block text-sm font-medium">
-              {t("connection.name")}
-            </label>
-            <input
-              id="connectionName"
-              className={`${INPUT_CLASS} mt-1.5`}
-              value={active.name}
-              onChange={(e) => {
-                updateActive({ name: e.target.value })
-              }}
-            />
-          </div>
-          <div>
-            <label htmlFor="backend" className="block text-sm font-medium">
-              {t("backend.label")}
-            </label>
-            <select
-              id="backend"
-              className={`${INPUT_CLASS} mt-1.5`}
-              value={active.backend}
-              onChange={(e) => {
-                updateActive({ backend: e.target.value === "singbox" ? "singbox" : "mihomo" })
-              }}
-            >
-              <option value="mihomo">{t("backend.mihomo")}</option>
-              <option value="singbox">{t("backend.singbox")}</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="baseUrl" className="block text-sm font-medium">
-              {t("connection.baseUrl")}
-            </label>
-            <input
-              id="baseUrl"
-              className={`${INPUT_CLASS} mt-1.5`}
-              value={active.baseUrl}
-              onChange={(e) => {
-                updateActive({ baseUrl: e.target.value })
-              }}
-            />
-          </div>
-          <div>
-            <label htmlFor="secret" className="block text-sm font-medium">
-              Secret
-            </label>
-            <input
-              id="secret"
-              type="password"
-              autoComplete="off"
-              className={`${INPUT_CLASS} mt-1.5`}
-              value={active.secret}
-              onChange={(e) => {
-                updateActive({ secret: e.target.value })
-              }}
-            />
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-2">
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-muted">
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-accent"
-                checked={remember}
-                onChange={(e) => {
-                  setRemember(e.target.checked)
-                }}
-              />
-              {t("connection.remember")}
-            </label>
-            <div className="flex shrink-0 gap-2">
-              <button
-                type="button"
-                onClick={addConnection}
-                className="cursor-pointer rounded-lg border border-line px-3 py-1.5 text-sm transition-colors hover:bg-inset"
-              >
-                {t("connection.add")}
-              </button>
-              <button
-                type="button"
-                onClick={deleteActive}
-                disabled={connections.length === 1}
-                className="cursor-pointer rounded-lg border border-line px-3 py-1.5 text-sm transition-colors hover:bg-inset disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {t("connection.delete")}
-              </button>
-            </div>
-          </div>
-        </div>
-      </details>
-
-      <form
-        className="rounded-xl border border-line bg-surface p-5 shadow-sm"
-        onSubmit={(event) => {
-          void onSubmit(event)
-        }}
+    <main className="relative mx-auto flex h-dvh max-w-3xl flex-col overflow-hidden px-5 py-6 sm:py-8">
+      <div
+        ref={stageRef}
+        className="transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+        style={{ transform: `translateY(${idle ? idleShift : 0}px)` }}
       >
-        <div className="mb-4">
-          <label htmlFor="connectionSelect" className="block text-sm font-medium">
-            {t("connection.title")}
-          </label>
-          <select
-            id="connectionSelect"
-            className={`${INPUT_CLASS} mt-1.5`}
-            value={active.id}
-            onChange={(e) => {
-              setActiveId(e.target.value)
-            }}
-          >
-            {connections.map((c) => (
-              <option key={c.id} value={c.id}>
-                {connectionLabel(c)} · {t(BACKEND_LABEL[c.backend])}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="target" className="block text-sm font-medium">
-            {t("form.target")}
-          </label>
-          <div className="mt-1.5 flex gap-2">
-            <input
-              id="target"
-              className={INPUT_CLASS}
-              value={target}
-              onChange={(e) => {
-                setTarget(e.target.value)
-              }}
-              placeholder="example.com"
-              required
-            />
+        <header className="flex items-center justify-between gap-4">
+          <ConnectionManager value={saved} onChange={onConnectionsChange} />
+          <span className="shrink-0 text-xs text-ink-muted/70">mihomo / sing-box checker</span>
+        </header>
+
+        {updateReady && (
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm">
+            <span>{t("update.ready")}</span>
             <button
-              type="submit"
-              disabled={running || target.trim() === ""}
-              className="shrink-0 cursor-pointer rounded-lg bg-accent px-4 text-sm font-medium text-on-accent transition-colors hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
+              type="button"
+              onClick={applyServiceWorkerUpdate}
+              className="shrink-0 cursor-pointer rounded-lg bg-accent px-3 py-1.5 font-medium text-on-accent transition-colors hover:bg-accent-strong"
             >
-              <StableLabel
-                options={DIAGNOSE_LABELS}
-                selected={running ? t("form.diagnosing") : t("form.diagnose")}
-              />
+              {t("update.apply")}
             </button>
           </div>
-          <p className="mt-2 text-xs text-ink-muted">{t("form.hint")}</p>
-          <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-ink-muted">
-            <input
-              type="checkbox"
-              className="h-3.5 w-3.5 accent-accent"
-              checked={liveUpstream && active.backend === "mihomo"}
-              disabled={active.backend === "singbox"}
-              onChange={(e) => {
-                setLiveUpstream(e.target.checked)
-              }}
-            />
-            {t(active.backend === "singbox" ? "form.liveUpstreamSingbox" : "form.liveUpstream")}
-          </label>
-        </div>
-      </form>
+        )}
 
-      {error && (
-        <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-          {tm(error)}
-        </p>
-      )}
-      {result && (
         <div className="mt-6">
-          <ResultView result={result} />
+          <form
+            className="relative w-full"
+            onSubmit={(event) => {
+              void onSubmit(event)
+            }}
+          >
+            <label htmlFor="target" className="sr-only">
+              {t("form.target")}
+            </label>
+            <div className="flex items-center gap-2 rounded-2xl bg-surface p-2 shadow-md">
+              <input
+                id="target"
+                className="min-w-0 flex-1 bg-transparent px-3 py-2 text-base text-ink placeholder:text-ink-muted/70 focus:outline-none"
+                value={target}
+                onChange={(e) => {
+                  setTarget(e.target.value)
+                }}
+                placeholder="example.com"
+                autoComplete="off"
+                required
+              />
+              <button
+                type="submit"
+                disabled={phase === "running" || target.trim() === ""}
+                title={error ? tm(error) : undefined}
+                className={`shrink-0 cursor-pointer rounded-xl px-5 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                  phase === "failed"
+                    ? "bg-red-600 text-white hover:bg-red-700"
+                    : "bg-accent text-on-accent hover:bg-accent-strong"
+                }`}
+              >
+                <StableLabel
+                  options={DIAGNOSE_LABELS}
+                  selected={
+                    phase === "running"
+                      ? t("form.diagnosing")
+                      : phase === "failed"
+                        ? t("phase.failed")
+                        : t("form.diagnose")
+                  }
+                />
+              </button>
+            </div>
+            <label
+              className={`absolute left-0 top-full mt-2 flex h-5 w-fit items-center gap-2 px-1 text-xs text-ink-muted ${
+                active.backend === "mihomo" ? "cursor-pointer" : "invisible"
+              }`}
+            >
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 accent-accent"
+                checked={liveUpstream}
+                onChange={(e) => {
+                  setLiveUpstream(e.target.checked)
+                }}
+              />
+              {t("form.liveUpstream")}
+            </label>
+          </form>
         </div>
+      </div>
+
+      {phase !== null && (
+        <section className="mt-9 flex min-h-0 flex-1 flex-col">
+          <div role="tablist" className="mb-3 flex w-fit gap-1 rounded-xl bg-inset p-1 text-sm">
+            {(["trace", "result"] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tab === key}
+                disabled={key === "result" && !result}
+                onClick={() => {
+                  setTab(key)
+                }}
+                className={`cursor-pointer rounded-lg px-3 py-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                  tab === key ? "bg-surface font-medium shadow-sm" : "text-ink-muted hover:text-ink"
+                }`}
+              >
+                <StableLabel
+                  options={[...translationsOf("tabs.trace"), ...translationsOf("tabs.result")]}
+                  selected={t(key === "trace" ? "tabs.trace" : "tabs.result")}
+                />
+              </button>
+            ))}
+          </div>
+          <div className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto">
+            {tab === "trace" ? (
+              <DiagnosisTrace key={runKey} target={runTarget} phase={phase} events={traceEvents} />
+            ) : (
+              result && <ResultView result={result} />
+            )}
+          </div>
+        </section>
       )}
     </main>
   )

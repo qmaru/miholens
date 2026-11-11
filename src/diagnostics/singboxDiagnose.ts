@@ -5,13 +5,14 @@ import {
   correlateChain,
   matchConnection,
   observed,
+  traceOutcome,
   unavailable,
 } from "./diagnose"
 import { parseSingboxDnsLogs } from "./singboxDnsLog"
 
 import type { RawConnection } from "../api/client"
 import type { Message } from "../i18n/messages"
-import type { SourceSet } from "./diagnose"
+import type { SourceSet, TraceEvent } from "./diagnose"
 import type { ProxyNode } from "./proxyChain"
 import type { DiagnosisResult, Field, RuleMatch } from "./types"
 
@@ -123,12 +124,32 @@ export function buildSingboxDiagnosis(
 export async function runSingboxDiagnosis(
   client: SingboxClient,
   target: string,
+  options: { onTrace?: (event: TraceEvent) => void } = {},
 ): Promise<DiagnosisResult> {
   const startedAt = new Date().toISOString()
+  const trace = options.onTrace ?? (() => undefined)
+  const isDomain = classifyTarget(target) === "domain"
   const [connections, proxies, logLines] = await Promise.all([
     client.getConnections(),
     client.getProxies(),
-    classifyTarget(target) === "domain" ? client.getLogLines() : Promise.resolve([]),
+    isDomain ? client.getLogLines() : Promise.resolve([]),
   ])
-  return buildSingboxDiagnosis({ target, connections, proxies, logLines }, startedAt)
+  trace({
+    stage: "CONN",
+    message: {
+      key: "trace.singboxLoaded",
+      params: { proxies: Object.keys(proxies).length, connections: connections.length },
+    },
+    ok: true,
+  })
+  if (isDomain) {
+    trace({
+      stage: "DNS",
+      message: { key: "trace.singboxLogs", params: { count: logLines.length } },
+      ok: logLines.length > 0,
+    })
+  }
+  const diagnosis = buildSingboxDiagnosis({ target, connections, proxies, logLines }, startedAt)
+  traceOutcome(diagnosis, trace)
+  return diagnosis
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { buildDiagnosis, classifyTarget, normalizeTarget } from "./diagnose"
-import { parseDnsLogLine } from "./dnsLog"
+import { createDnsLogParser, parseDnsLogLine } from "./dnsLog"
 import { chainsMatchRootFirst, resolveProxyChain, type ProxyNode } from "./proxyChain"
 
 import type { RuleEntry } from "./types"
@@ -91,6 +91,17 @@ describe("parseDnsLogLine", () => {
 
   it("returns null for non-DNS lines", () => {
     expect(parseDnsLogLine("[TCP] dial PROXY")).toBeNull()
+  })
+
+  it("pairs sing-box query and route lines into one resolve event", () => {
+    const parse = createDnsLogParser()
+    expect(parse("dns: exchange www.baidu.com. IN A")).toBeNull()
+    expect(parse("dns: match[13] www.baidu.com. => route(isp-dns)")).toEqual({
+      name: "www.baidu.com",
+      type: "A",
+      server: "isp-dns",
+      kind: "resolve",
+    })
   })
 })
 
@@ -252,6 +263,33 @@ describe("buildDiagnosis", () => {
       params: { rule: "Match", payload: "stale" },
     })
     expect(result.proxy.rootGroup.status).toBe("unavailable")
+  })
+
+  it("reads a sing-box rule string from a mihomo-compatible endpoint as an observed hit", () => {
+    const result = buildDiagnosis({
+      target: "www.example.com",
+      rules,
+      proxies,
+      connections: [
+        {
+          ...conn,
+          rule: "rule_set=[geosite-apple geosite-icloud] => route(直接访问)",
+          rulePayload: "",
+        },
+      ],
+      dnsResponse: { Status: 0 },
+      dnsLogEvents: [],
+    })
+    expect(result.rules.kernelHit).toMatchObject({
+      status: "observed",
+      value: {
+        index: null,
+        type: "rule_set",
+        payload: "[geosite-apple geosite-icloud]",
+        proxy: "直接访问",
+      },
+    })
+    expect(result.proxy.rootGroup).toMatchObject({ status: "observed", value: "直接访问" })
   })
 
   it("falls back to the connection's observed chain when the group cannot be expanded", () => {

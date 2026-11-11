@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react"
 
 import { useI18n } from "../i18n/LanguageProvider"
-import { translationsOf } from "../i18n/messages"
-import { StableLabel } from "./StableLabel"
-
 const DARK_QUERY = "(prefers-color-scheme: dark)"
-const THEME_LABELS = [...translationsOf("theme.light"), ...translationsOf("theme.dark")]
 
 export function ThemeSwitch() {
   const { t } = useI18n()
@@ -41,13 +37,9 @@ export function ThemeSwitch() {
       role="switch"
       aria-checked={dark}
       onClick={toggle}
-      className="inline-flex cursor-pointer items-center gap-2 text-xs text-ink-muted transition-colors hover:text-ink"
+      className="inline-flex shrink-0 cursor-pointer items-center gap-2 text-xs whitespace-nowrap text-ink-muted transition-colors hover:text-ink"
     >
-      <StableLabel
-        options={THEME_LABELS}
-        selected={dark ? t("theme.dark") : t("theme.light")}
-        align="end"
-      />
+      <span>{dark ? t("theme.dark") : t("theme.light")}</span>
       <span
         aria-hidden="true"
         className={`relative inline-block h-3.5 w-6 rounded-full transition-colors ${dark ? "bg-accent" : "bg-line"}`}

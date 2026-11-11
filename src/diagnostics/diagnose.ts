@@ -1,4 +1,4 @@
-import { parseDnsLogLine } from "./dnsLog"
+import { createDnsLogParser } from "./dnsLog"
 import { chainsMatchRootFirst, resolveProxyChain } from "./proxyChain"
 
 import type { MihomoClient, RawConnection, RawDnsResponse } from "../api/client"
@@ -78,6 +78,12 @@ function findRule(rules: RuleEntry[], rule: string, payload: string): RuleMatch 
   return found
     ? { index: found.index, type: found.type, payload: found.payload, proxy: found.proxy }
     : null
+}
+
+/** sing-box rule text as mihomo-compatible endpoints report it: `rule_set=[...] => route(TAG)` */
+function parseSingboxRule(rule: string): Pick<RuleMatch, "type" | "payload" | "proxy"> | null {
+  const m = /^([^=]+)=(.+) => route\((.+)\)$/.exec(rule)
+  return m ? { type: m[1], payload: m[2], proxy: m[3] } : null
 }
 
 /** Most recent user connection to the target; "Inner" connections are the kernel's own DNS upstream sessions */
@@ -223,8 +229,11 @@ export function buildDiagnosis(
     kernelHit = unavailable("connections-api", { key: "rule.noConnection" })
   } else {
     const hit = findRule(rules, conn.rule, conn.rulePayload)
+    const singboxHit = parseSingboxRule(conn.rule)
     if (hit) {
       kernelHit = observed(hit, "connections-api")
+    } else if (singboxHit) {
+      kernelHit = observed({ index: null, ...singboxHit }, "connections-api")
     } else if (conn.rule === "") {
       kernelHit = unavailable("connections-api", { key: "rule.emptyField" })
     } else {
@@ -270,6 +279,13 @@ export function buildDiagnosis(
   }
 }
 
+export interface TraceEvent {
+  stage: "DNS" | "RULE" | "PROXY" | "CONN"
+  message: Message
+  /** False when the kernel did not expose the data this step was looking for */
+  ok: boolean
+}
+
 /**
  * Live collection: query DNS while capturing kernel DNS logs, then fetch rule, proxy, and connection snapshots.
  * With `liveUpstream`, the DNS cache is flushed first. Without the flush, a cached answer produces no upstream log.
@@ -278,33 +294,52 @@ export function buildDiagnosis(
 export async function runDiagnosis(
   client: MihomoClient,
   target: string,
-  options: { liveUpstream: boolean },
+  options: { liveUpstream: boolean; onTrace?: (event: TraceEvent) => void },
 ): Promise<DiagnosisResult> {
   const startedAt = new Date().toISOString()
   const targetKind = classifyTarget(target)
   const dnsLogEvents: DnsLogEvent[] = []
   let dnsResponse: RawDnsResponse | null = null
   let logStreamFailed = false
+  const trace = options.onTrace ?? (() => undefined)
 
   if (targetKind === "domain") {
-    if (options.liveUpstream) await client.flushDnsCache()
+    if (options.liveUpstream) {
+      await client.flushDnsCache()
+      trace({ stage: "DNS", message: { key: "trace.flush" }, ok: true })
+    }
     // Wait for the socket to open; logs emitted before that would be lost
+    const parseLog = createDnsLogParser()
     const stopLogs = await client.watchLogs(
       (payload) => {
-        const event = parseDnsLogLine(payload)
+        const event = parseLog(payload)
         if (event) dnsLogEvents.push(event)
       },
       () => {
         logStreamFailed = true
       },
     )
+    trace({ stage: "DNS", message: { key: "trace.dnsQuery", params: { target } }, ok: true })
     try {
       dnsResponse = await client.queryDns(target, "A")
+      trace({
+        stage: "DNS",
+        message: {
+          key: "trace.dnsAnswer",
+          params: { count: dnsResponse.Answer?.length ?? 0, rcode: dnsResponse.Status },
+        },
+        ok: true,
+      })
       // Logs arrive asynchronously over the WebSocket; allow a short collection window
       await new Promise((resolve) => setTimeout(resolve, 300))
     } finally {
       stopLogs()
     }
+    trace({
+      stage: "DNS",
+      message: { key: "trace.dnsLogs", params: { count: dnsLogEvents.length } },
+      ok: !logStreamFailed,
+    })
   }
 
   const [rules, proxies, providerProxies, connections] = await Promise.all([
@@ -313,8 +348,20 @@ export async function runDiagnosis(
     client.getProviderProxies(),
     client.getConnections(),
   ])
+  trace({
+    stage: "CONN",
+    message: {
+      key: "trace.loaded",
+      params: {
+        rules: rules.length,
+        proxies: Object.keys(proxies).length,
+        connections: connections.length,
+      },
+    },
+    ok: true,
+  })
 
-  return buildDiagnosis(
+  const diagnosis = buildDiagnosis(
     {
       target,
       rules,
@@ -327,4 +374,44 @@ export async function runDiagnosis(
     },
     startedAt,
   )
+
+  traceOutcome(diagnosis, trace)
+
+  return diagnosis
+}
+
+/** Emits the rule, proxy chain, and probe connection steps of a finished diagnosis */
+export function traceOutcome(diagnosis: DiagnosisResult, trace: (event: TraceEvent) => void) {
+  const { kernelHit } = diagnosis.rules
+  trace({
+    stage: "RULE",
+    message:
+      kernelHit.status === "observed" && kernelHit.value
+        ? {
+            key: "trace.rule",
+            params: {
+              type: kernelHit.value.type,
+              payload: kernelHit.value.payload,
+              proxy: kernelHit.value.proxy,
+            },
+          }
+        : { key: "trace.noRule" },
+    ok: kernelHit.status === "observed",
+  })
+  const { chain } = diagnosis.proxy
+  trace({
+    stage: "PROXY",
+    message:
+      chain.status === "observed" && chain.value
+        ? { key: "trace.chain", params: { chain: chain.value.join(" → ") } }
+        : { key: "trace.noChain" },
+    ok: chain.status === "observed",
+  })
+  trace({
+    stage: "CONN",
+    message: diagnosis.probe.value
+      ? { key: "trace.probe", params: { id: diagnosis.probe.value.id } }
+      : { key: "trace.noProbe" },
+    ok: diagnosis.probe.value !== null,
+  })
 }
