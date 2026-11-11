@@ -40,7 +40,7 @@ html {
 }
 
 @theme inline {
-  --font-sans: ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-sans: "Google Sans Flex", "Noto Sans SC", "Noto Emoji", sans-serif;
   --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
   --color-page: var(--page);
   --color-surface: var(--surface);
