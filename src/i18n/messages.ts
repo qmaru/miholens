@@ -10,8 +10,10 @@ const en = {
   "common.noData": "No data",
   "common.noAnswer": "No answer",
 
+  "theme.label": "Dark mode",
   "theme.light": "Light",
   "theme.dark": "Dark",
+  "language.label": "Language",
 
   "connection.title": "Connection",
   "connection.defaultName": "Connection {index}",
@@ -19,6 +21,7 @@ const en = {
   "connection.add": "Add",
   "connection.delete": "Delete",
   "connection.confirmDelete": "Confirm delete",
+  "connection.secret": "Secret",
   "connection.secretUnset": "not set",
   "connection.baseUrl": "API address",
   "connection.remember": "Remember (Secret stored in plain text)",
@@ -126,8 +129,10 @@ const zh: Record<MessageKey, string> = {
   "common.noData": "无数据",
   "common.noAnswer": "无应答",
 
+  "theme.label": "深色模式",
   "theme.light": "浅色",
   "theme.dark": "深色",
+  "language.label": "语言",
 
   "connection.title": "连接",
   "connection.defaultName": "连接 {index}",
@@ -135,6 +140,7 @@ const zh: Record<MessageKey, string> = {
   "connection.add": "新增",
   "connection.delete": "删除",
   "connection.confirmDelete": "确认删除",
+  "connection.secret": "密钥",
   "connection.secretUnset": "未设置",
   "connection.baseUrl": "API 地址",
   "connection.remember": "记住（Secret 明文存储）",

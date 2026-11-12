@@ -415,7 +415,7 @@ function Inspector() {
             <label htmlFor="target" className="sr-only">
               {t("form.target")}
             </label>
-            <div className="flex items-center gap-2 rounded-2xl bg-surface p-2 shadow-md">
+            <div className="flex items-center gap-2 rounded-2xl bg-surface p-2 shadow-md focus-within:ring-2 focus-within:ring-accent/30">
               <input
                 id="target"
                 className="min-w-0 flex-1 bg-transparent px-3 py-2 text-base text-ink placeholder:text-ink-muted/70 focus:outline-none"
@@ -425,6 +425,7 @@ function Inspector() {
                 }}
                 placeholder="example.com"
                 autoComplete="off"
+                spellCheck={false}
                 required
               />
               <button

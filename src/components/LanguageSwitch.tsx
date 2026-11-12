@@ -1,7 +1,8 @@
 import { useI18n } from "../i18n/LanguageProvider"
+import { StableLabel } from "./StableLabel"
 
 export function LanguageSwitch() {
-  const { lang, setLang } = useI18n()
+  const { t, lang, setLang } = useI18n()
   const english = lang === "en"
 
   return (
@@ -9,12 +10,13 @@ export function LanguageSwitch() {
       type="button"
       role="switch"
       aria-checked={english}
+      aria-label={t("language.label")}
       onClick={() => {
         setLang(english ? "zh" : "en")
       }}
       className="inline-flex shrink-0 cursor-pointer items-center gap-2 text-xs whitespace-nowrap text-ink-muted transition-colors hover:text-ink"
     >
-      <span>{english ? "English" : "中文"}</span>
+      <StableLabel options={["English", "中文"]} selected={english ? "English" : "中文"} />
       <span
         aria-hidden="true"
         className={`relative inline-block h-3.5 w-6 rounded-full transition-colors ${english ? "bg-accent" : "bg-line"}`}

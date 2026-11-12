@@ -78,6 +78,28 @@ body::before {
   animation: rise 0.6s var(--ease) both;
 }
 
+.connection-trigger {
+  anchor-name: --connection-trigger;
+}
+
+.connection-menu {
+  inset: auto;
+  position-anchor: --connection-trigger;
+  top: anchor(bottom);
+  left: anchor(left);
+  margin: 0.5rem 0 0;
+  position-try-fallbacks: flip-block;
+}
+
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
 .ring-pulse {
   position: relative;
 }
