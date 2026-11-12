@@ -65,6 +65,7 @@ function serviceWorker() {
 
 export default defineConfig({
   integrations: [react(), serviceWorker()],
+  devToolbar: { enabled: false },
   vite: {
     plugins: [tailwindcss()],
   },

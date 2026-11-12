@@ -24,7 +24,7 @@ export function DiagnosisTrace({ target, phase, events }: Props) {
   const statusClass = phase === "failed" ? "text-red-400" : "text-emerald-300"
 
   return (
-    <section className="rise flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-term text-term-ink">
+    <section className="rise flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-term text-term-ink">
       <div className="flex items-center gap-2 bg-term-line px-4 py-2.5 font-mono text-xs text-term-dim">
         <span className="size-2.5 rounded-full bg-amber-700" />
         <span className="size-2.5 rounded-full bg-amber-600" />
@@ -44,7 +44,7 @@ export function DiagnosisTrace({ target, phase, events }: Props) {
         </div>
         {events.map((event, index) => (
           <div key={index} className="trace-line mt-2 flex items-start gap-2">
-            <span className="w-14 shrink-0 rounded bg-term-line px-1.5 text-center text-[11px] leading-[1.7] text-sky-300">
+            <span className="w-14 shrink-0 rounded-xl bg-term-line px-1.5 text-center text-[11px] leading-[1.7] text-sky-300">
               {event.stage}
             </span>
             <span className="text-term-dim">▸</span>

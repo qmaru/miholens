@@ -127,7 +127,7 @@ export function ConnectionManager({ value, onChange }: Props) {
           type="button"
           {...toggleMenu}
           aria-expanded={menuOpen}
-          className="connection-trigger inline-flex max-w-full min-w-0 cursor-pointer items-center gap-2 rounded-full bg-surface px-3 py-1.5 text-xs shadow-sm ring-1 ring-line transition-shadow hover:ring-accent"
+          className="connection-trigger inline-flex max-w-full min-w-0 cursor-pointer items-center gap-2 rounded-xl bg-surface px-3 py-1.5 text-xs shadow-sm ring-1 ring-line transition-shadow hover:ring-accent"
         >
           <span
             className="ring-pulse relative size-2 shrink-0 rounded-full bg-emerald-500"
@@ -142,7 +142,7 @@ export function ConnectionManager({ value, onChange }: Props) {
           onToggle={(event) => {
             setMenuOpen(event.newState === "open")
           }}
-          className="connection-menu rise open:flex w-72 flex-col gap-0.5 rounded-2xl bg-surface p-1.5 shadow-xl ring-1 ring-line"
+          className="connection-menu rise open:flex w-72 flex-col gap-0.5 rounded-xl bg-surface p-1.5 shadow-xl ring-1 ring-line"
         >
           {value.connections.map((c) => (
             <button
@@ -153,7 +153,7 @@ export function ConnectionManager({ value, onChange }: Props) {
               onClick={() => {
                 onChange({ ...value, activeId: c.id })
               }}
-              className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-inset"
+              className="flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-left transition-colors hover:bg-inset"
             >
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="truncate text-sm font-medium">{connectionLabel(c)}</span>
@@ -174,7 +174,7 @@ export function ConnectionManager({ value, onChange }: Props) {
             type="button"
             {...hideMenu}
             onClick={openPanel}
-            className="cursor-pointer rounded-lg px-3 py-2 text-left text-sm text-ink-muted transition-colors hover:bg-inset hover:text-ink"
+            className="cursor-pointer rounded-xl px-3 py-2 text-left text-sm text-ink-muted transition-colors hover:bg-inset hover:text-ink"
           >
             {t("connection.manage")}
           </button>
@@ -185,7 +185,7 @@ export function ConnectionManager({ value, onChange }: Props) {
         ref={dialogRef}
         aria-labelledby={titleId}
         closedby="any"
-        className="rise m-auto open:flex max-h-[min(640px,100%)] w-full max-w-[760px] flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl ring-1 ring-line backdrop:bg-ink/20 backdrop:backdrop-blur-sm"
+        className="rise m-auto open:flex max-h-[min(640px,100%)] w-full max-w-[760px] flex-col overflow-hidden rounded-xl bg-surface shadow-2xl ring-1 ring-line backdrop:bg-ink/20 backdrop:backdrop-blur-sm"
       >
         <div className="flex items-center justify-between px-5 pt-4 pb-3">
           <h2 id={titleId} className="text-base font-semibold">
@@ -197,7 +197,7 @@ export function ConnectionManager({ value, onChange }: Props) {
               dialogRef.current?.close()
             }}
             aria-label={t("connection.close")}
-            className="cursor-pointer rounded-lg px-2 py-1 text-ink-muted transition-colors hover:bg-inset hover:text-ink"
+            className="cursor-pointer rounded-xl px-2 py-1 text-ink-muted transition-colors hover:bg-inset hover:text-ink"
           >
             ✕
           </button>
@@ -213,25 +213,27 @@ export function ConnectionManager({ value, onChange }: Props) {
                 onClick={() => {
                   select(c.id)
                 }}
-                className={`flex cursor-pointer flex-col gap-0.5 rounded-lg px-3 py-2 text-left transition-colors ${
-                  c.id === editing.id ? "bg-surface shadow-sm" : "hover:bg-surface/60"
+                className={`group flex cursor-pointer flex-col gap-0.5 rounded-xl px-3 py-2 text-left transition-colors ${
+                  c.id === editing.id ? "bg-accent text-on-accent" : "hover:bg-surface/60"
                 }`}
               >
                 <span className="flex items-center gap-2">
                   <span className="truncate text-sm font-medium">{connectionLabel(c)}</span>
                   {c.id === value.activeId && (
-                    <em className="shrink-0 rounded-full bg-emerald-500/15 px-1.5 text-[11px] text-emerald-700 not-italic dark:text-emerald-300">
+                    <em className="shrink-0 rounded-xl bg-emerald-500/15 px-1.5 text-[11px] text-emerald-700 not-italic group-aria-pressed:bg-on-accent/20 group-aria-pressed:text-on-accent dark:text-emerald-300">
                       {t("connection.current")}
                     </em>
                   )}
                 </span>
-                <span className="truncate font-mono text-xs text-ink-muted">{c.baseUrl}</span>
+                <span className="truncate font-mono text-xs text-ink-muted group-aria-pressed:text-on-accent/80">
+                  {c.baseUrl}
+                </span>
               </button>
             ))}
             <button
               type="button"
               onClick={add}
-              className="mt-1 cursor-pointer rounded-lg px-3 py-2 text-left text-sm text-ink-muted transition-colors hover:bg-surface/60 hover:text-ink"
+              className="mt-1 cursor-pointer rounded-xl px-3 py-2 text-left text-sm text-ink-muted transition-colors hover:bg-surface/60 hover:text-ink"
             >
               + {t("connection.add")}
             </button>
@@ -265,7 +267,7 @@ export function ConnectionManager({ value, onChange }: Props) {
                     }}
                     className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm transition-colors ${
                       editing.backend === backend
-                        ? "bg-surface font-medium shadow-sm"
+                        ? "bg-accent font-medium text-on-accent"
                         : "text-ink-muted hover:text-ink"
                     }`}
                   >
@@ -359,7 +361,7 @@ export function ConnectionManager({ value, onChange }: Props) {
                     onClick={() => {
                       onChange({ ...value, activeId: editing.id })
                     }}
-                    className="cursor-pointer rounded-xl bg-accent-strong px-3.5 py-2 text-sm font-medium text-on-accent transition-opacity hover:opacity-90"
+                    className="cursor-pointer rounded-xl bg-accent px-3.5 py-2 text-sm font-medium text-on-accent transition-opacity hover:opacity-90"
                   >
                     {t("connection.setActive")}
                   </button>

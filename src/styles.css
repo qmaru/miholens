@@ -14,9 +14,9 @@ html {
   --line: #d3dbe0;
   --ink: #1f2a30;
   --ink-muted: #5f6f7a;
-  --accent: #5f6f7a;
-  --accent-strong: #37474f;
-  --accent-soft: #e6eaed;
+  --accent: #376b6d;
+  --accent-strong: #2b5657;
+  --accent-soft: #e2eded;
   --on-accent: #ffffff;
   --term: #0f1719;
   --term-line: #1d2a30;
@@ -33,10 +33,10 @@ html {
   --line: #34424a;
   --ink: #e3e9ec;
   --ink-muted: #9aa7b1;
-  --accent: #9aa7b1;
-  --accent-strong: #cfd8dc;
-  --accent-soft: #263036;
-  --on-accent: #13181b;
+  --accent: #376b6d;
+  --accent-strong: #9fd0d2;
+  --accent-soft: #1d2e30;
+  --on-accent: #ffffff;
 }
 
 @theme inline {
@@ -69,7 +69,7 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(40% 40% at 30% 25%, rgb(95 111 122 / 0.12), transparent),
+    radial-gradient(40% 40% at 30% 25%, rgb(55 107 109 / 0.12), transparent),
     radial-gradient(35% 35% at 75% 70%, rgb(5 150 105 / 0.08), transparent);
   animation: drift 20s ease-in-out infinite alternate;
 }

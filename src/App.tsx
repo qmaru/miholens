@@ -37,22 +37,22 @@ type Tone = "dns" | "rule" | "proxy" | "link"
 
 const TONE: Record<Tone, { bar: string; text: string; soft: string }> = {
   dns: {
-    bar: "border-l-sky-500",
+    bar: "before:bg-sky-500",
     text: "text-sky-700 dark:text-sky-300",
     soft: "bg-sky-50 border-sky-200 dark:bg-sky-950/40 dark:border-sky-900",
   },
   rule: {
-    bar: "border-l-violet-500",
+    bar: "before:bg-violet-500",
     text: "text-violet-700 dark:text-violet-300",
     soft: "bg-violet-50 border-violet-200 dark:bg-violet-950/40 dark:border-violet-900",
   },
   proxy: {
-    bar: "border-l-emerald-500",
+    bar: "before:bg-emerald-500",
     text: "text-emerald-700 dark:text-emerald-300",
     soft: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900",
   },
   link: {
-    bar: "border-l-fuchsia-500",
+    bar: "before:bg-fuchsia-500",
     text: "text-fuchsia-700 dark:text-fuchsia-300",
     soft: "bg-fuchsia-50 border-fuchsia-200 dark:bg-fuchsia-950/40 dark:border-fuchsia-900",
   },
@@ -81,7 +81,9 @@ function Code({ children }: { children: ReactNode }) {
 
 function Section({ title, tone, children }: { title: string; tone: Tone; children: ReactNode }) {
   return (
-    <section className={`rounded-xl border border-line border-l-4 bg-inset px-5 ${TONE[tone].bar}`}>
+    <section
+      className={`relative rounded-xl bg-inset px-5 before:absolute before:inset-y-3 before:left-0 before:w-1 before:rounded-full ${TONE[tone].bar}`}
+    >
       <h2 className={`pt-4 text-base font-semibold ${TONE[tone].text}`}>{title}</h2>
       <div className="divide-y divide-line">{children}</div>
     </section>
@@ -104,7 +106,7 @@ function Highlight<T>({
     <div className={`min-w-0 rounded-xl border p-4 ${TONE[tone].soft}`}>
       <div className="flex items-center justify-between gap-2">
         <span className={`text-xs font-medium ${TONE[tone].text}`}>{label}</span>
-        <span className={`rounded px-1.5 py-0.5 text-xs ${STATUS_CLASS[field.status]}`}>
+        <span className={`rounded-xl px-1.5 py-0.5 text-xs ${STATUS_CLASS[field.status]}`}>
           {t(STATUS_KEY[field.status])}
         </span>
       </div>
@@ -137,7 +139,7 @@ function FieldView<T>({
         <div className="text-sm font-medium">{label}</div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-muted">
           <span
-            className={`shrink-0 rounded px-1.5 py-0.5 whitespace-nowrap ${STATUS_CLASS[field.status]}`}
+            className={`shrink-0 rounded-xl px-1.5 py-0.5 whitespace-nowrap ${STATUS_CLASS[field.status]}`}
           >
             {t(STATUS_KEY[field.status])}
           </span>
@@ -160,9 +162,9 @@ function FieldView<T>({
 function ResultView({ result }: { result: DiagnosisResult }) {
   const { t, tm } = useI18n()
   return (
-    <div className="space-y-4 rounded-2xl border border-line bg-surface p-4 shadow-md sm:p-5">
+    <div className="space-y-4">
       <header className="flex flex-wrap items-baseline gap-3 border-b border-line pb-4">
-        <span className="rounded-md bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent-strong">
+        <span className="rounded-xl bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent-strong">
           {t(result.targetKind === "domain" ? "target.domain" : "target.ip")}
         </span>
         <h2 className="min-w-0 font-mono text-lg font-semibold break-all">{result.target}</h2>
@@ -393,12 +395,12 @@ function Inspector() {
         </header>
 
         {updateReady && (
-          <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm">
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-sm">
             <span>{t("update.ready")}</span>
             <button
               type="button"
               onClick={applyServiceWorkerUpdate}
-              className="shrink-0 cursor-pointer rounded-lg bg-accent px-3 py-1.5 font-medium text-on-accent transition-colors hover:bg-accent-strong"
+              className="shrink-0 cursor-pointer rounded-xl bg-accent px-3 py-1.5 font-medium text-on-accent transition-opacity hover:opacity-90"
             >
               {t("update.apply")}
             </button>
@@ -415,7 +417,7 @@ function Inspector() {
             <label htmlFor="target" className="sr-only">
               {t("form.target")}
             </label>
-            <div className="flex items-center gap-2 rounded-2xl bg-surface p-2 shadow-md focus-within:ring-2 focus-within:ring-accent/30">
+            <div className="flex items-center gap-2 rounded-xl bg-surface p-2 shadow-md focus-within:ring-2 focus-within:ring-accent/30">
               <input
                 id="target"
                 className="min-w-0 flex-1 bg-transparent px-3 py-2 text-base text-ink placeholder:text-ink-muted/70 focus:outline-none"
@@ -435,7 +437,7 @@ function Inspector() {
                 className={`shrink-0 cursor-pointer rounded-xl px-5 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                   phase === "failed"
                     ? "bg-red-600 text-white hover:bg-red-700"
-                    : "bg-accent text-on-accent hover:bg-accent-strong"
+                    : "bg-accent text-on-accent hover:opacity-90"
                 }`}
               >
                 <StableLabel
@@ -483,7 +485,9 @@ function Inspector() {
                   setTab(key)
                 }}
                 className={`cursor-pointer rounded-lg px-3 py-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                  tab === key ? "bg-surface font-medium shadow-sm" : "text-ink-muted hover:text-ink"
+                  tab === key
+                    ? "bg-accent font-medium text-on-accent"
+                    : "text-ink-muted hover:text-ink"
                 }`}
               >
                 <StableLabel
