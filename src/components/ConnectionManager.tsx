@@ -37,8 +37,8 @@ export function ConnectionManager({ value, onChange }: Props) {
   const titleId = useId()
   const menuId = useId()
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const hideMenu = { commandfor: menuId, command: "hide-popover" } as object
-  const toggleMenu = { commandfor: menuId, command: "toggle-popover" } as object
+  const hideMenu = { commandfor: menuId, command: "hide-popover" }
+  const toggleMenu = { commandfor: menuId, command: "toggle-popover" }
 
   const active = value.connections.find((c) => c.id === value.activeId) ?? value.connections[0]
   const editing = value.connections.find((c) => c.id === editId) ?? active

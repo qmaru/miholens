@@ -82,13 +82,15 @@ body::before {
   anchor-name: --connection-trigger;
 }
 
-.connection-menu {
-  inset: auto;
-  position-anchor: --connection-trigger;
-  top: anchor(bottom);
-  left: anchor(left);
-  margin: 0.5rem 0 0;
-  position-try-fallbacks: flip-block;
+@supports (top: anchor(bottom)) {
+  .connection-menu {
+    inset: auto;
+    position-anchor: --connection-trigger;
+    top: anchor(bottom);
+    left: anchor(left);
+    margin: 0.5rem 0 0;
+    position-try-fallbacks: flip-block;
+  }
 }
 
 dialog:modal {
